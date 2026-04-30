@@ -44,6 +44,8 @@ const CATEGORY_MAP: Record<string, { icon: React.ElementType, color: string }> =
 export default function FinancialOverview() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
 
   useEffect(() => {
     const fetchExpenses = async () => {
@@ -61,6 +63,34 @@ export default function FinancialOverview() {
     };
     fetchExpenses();
   }, []);
+
+  const { filteredTotal, filteredCount } = useMemo(() => {
+    let t = 0;
+    let count = 0;
+    
+    expenses.forEach(exp => {
+      let include = true;
+      const expDate = new Date(exp.date);
+      expDate.setHours(0,0,0,0);
+      
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0,0,0,0);
+        if (expDate < start) include = false;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(0,0,0,0);
+        if (expDate > end) include = false;
+      }
+      
+      if (include) {
+        t += exp.amount;
+        count += 1;
+      }
+    });
+    return { filteredTotal: t, filteredCount: count };
+  }, [expenses, startDate, endDate]);
 
   const { total, categoryTotals, topCategory, recentTx, trend, maxTrend, xLabels } = useMemo(() => {
     let t = 0;
@@ -140,9 +170,26 @@ export default function FinancialOverview() {
         {/* Total Expenses */}
         <div className="bg-white rounded-[24px] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group flex flex-col justify-between">
           <div>
-            <h3 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Total Expenses</h3>
-            <div className="flex items-start justify-between">
-              <h2 className="text-4xl font-bold text-[#1a1a2e] tracking-tight">{formatCurrency(total)}</h2>
+            <div className="flex justify-between items-center mb-2">
+              <h3 className="text-xs font-bold text-gray-400 tracking-wider uppercase">Total Expenses</h3>
+              <div className="flex items-center gap-2">
+                <input 
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="text-xs font-bold text-[#4338ca] bg-indigo-50 border-none rounded-lg py-1 px-2 focus:ring-0 cursor-pointer outline-none hover:bg-indigo-100 transition-colors"
+                />
+                <span className="text-xs font-bold text-gray-400">to</span>
+                <input 
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="text-xs font-bold text-[#4338ca] bg-indigo-50 border-none rounded-lg py-1 px-2 focus:ring-0 cursor-pointer outline-none hover:bg-indigo-100 transition-colors"
+                />
+              </div>
+            </div>
+            <div className="flex items-start justify-between mt-2">
+              <h2 className="text-4xl font-bold text-[#1a1a2e] tracking-tight">{formatCurrency(filteredTotal)}</h2>
               <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500">
                 <ArrowUpRight className="w-5 h-5" />
               </div>
@@ -150,7 +197,7 @@ export default function FinancialOverview() {
           </div>
           <div className="mt-8 flex items-center gap-3">
             <span className="bg-gray-50 text-gray-600 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
-              {expenses.length} Records
+              {filteredCount} Records
             </span>
           </div>
         </div>

@@ -73,7 +73,7 @@ export default function Expenses() {
     }
   };
 
-  const filteredAndSorted = useMemo(() => {
+  const { filteredAndSorted, totalVisible, highestCategory } = useMemo(() => {
     let result = [...expenses];
     if (filterCategory !== "All") {
       result = result.filter(e => e.category === filterCategory);
@@ -83,10 +83,24 @@ export default function Expenses() {
       const timeB = new Date(b.date).getTime();
       return sortOrder === "newest" ? timeB - timeA : timeA - timeB;
     });
-    return result;
-  }, [expenses, filterCategory, sortOrder]);
 
-  const totalVisible = filteredAndSorted.reduce((sum, e) => sum + e.amount, 0);
+    const total = result.reduce((sum, e) => sum + e.amount, 0);
+
+    const catTotals: Record<string, number> = {};
+    expenses.forEach(exp => {
+      catTotals[exp.category] = (catTotals[exp.category] || 0) + exp.amount;
+    });
+    let highestCat = "N/A";
+    let maxAmount = 0;
+    Object.entries(catTotals).forEach(([cat, amount]) => {
+      if (amount > maxAmount) {
+        maxAmount = amount;
+        highestCat = cat;
+      }
+    });
+
+    return { filteredAndSorted: result, totalVisible: total, highestCategory: highestCat };
+  }, [expenses, filterCategory, sortOrder]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
@@ -230,7 +244,7 @@ export default function Expenses() {
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-500">Highest Category</p>
-              <p className="text-lg font-bold text-[#1a1a2e]">Housing</p>
+              <p className="text-lg font-bold text-[#1a1a2e]">{highestCategory}</p>
             </div>
           </div>
           <div className="bg-white rounded-[24px] p-6 flex items-center gap-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
