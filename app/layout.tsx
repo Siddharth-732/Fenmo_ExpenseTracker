@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import ClientLayout from "@/components/ClientLayout";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -17,7 +18,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased bg-[#f0f2fa]">
       <body className={`${inter.className} min-h-full flex text-[#1a1a2e]`}>
-        {children}
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );
