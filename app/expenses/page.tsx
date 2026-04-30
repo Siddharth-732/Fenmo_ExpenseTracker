@@ -77,7 +77,7 @@ export default function Expenses() {
   const totalVisible = filteredAndSorted.reduce((sum, e) => sum + e.amount, 0);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
   };
 
   return (

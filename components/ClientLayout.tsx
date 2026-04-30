@@ -175,7 +175,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">Amount</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">$</span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₹</span>
                   <input 
                     name="amount"
                     type="number" 
