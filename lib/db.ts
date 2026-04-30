@@ -62,3 +62,43 @@ export const getBudget = (): number => {
 export const saveBudget = (amount: number): void => {
   fs.writeFileSync(budgetFilePath, JSON.stringify({ amount }, null, 2));
 };
+
+export interface Goal {
+  id: string;
+  title: string;
+  targetAmount: number;
+  currentAmount: number;
+  createdAt: string;
+}
+
+const goalsFilePath = path.join(process.cwd(), 'goals.json');
+
+if (!fs.existsSync(goalsFilePath)) {
+  fs.writeFileSync(goalsFilePath, JSON.stringify([]));
+}
+
+export const getGoals = (): Goal[] => {
+  try {
+    const data = fs.readFileSync(goalsFilePath, 'utf-8');
+    return JSON.parse(data) as Goal[];
+  } catch (error) {
+    return [];
+  }
+};
+
+export const saveGoal = (goal: Goal): void => {
+  const goals = getGoals();
+  goals.push(goal);
+  fs.writeFileSync(goalsFilePath, JSON.stringify(goals, null, 2));
+};
+
+export const updateGoalAmount = (id: string, newAmount: number): Goal | null => {
+  const goals = getGoals();
+  const index = goals.findIndex(g => g.id === id);
+  if (index !== -1) {
+    goals[index].currentAmount = Math.max(0, newAmount);
+    fs.writeFileSync(goalsFilePath, JSON.stringify(goals, null, 2));
+    return goals[index];
+  }
+  return null;
+};

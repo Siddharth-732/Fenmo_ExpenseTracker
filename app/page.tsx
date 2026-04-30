@@ -92,7 +92,7 @@ export default function FinancialOverview() {
     return { filteredTotal: t, filteredCount: count };
   }, [expenses, startDate, endDate]);
 
-  const { total, categoryTotals, topCategory, recentTx, trend, maxTrend, xLabels } = useMemo(() => {
+  const { total, categoryTotals, topCategory, recentTx, trend, maxTrend, xLabels, numDays } = useMemo(() => {
     let t = 0;
     const catTotals: Record<string, number> = {};
     
@@ -111,17 +111,30 @@ export default function FinancialOverview() {
       }
     });
 
-    const trend = Array(30).fill(0);
     const today = new Date();
     today.setHours(0,0,0,0);
     
+    let maxDiffDays = 0;
     expenses.forEach(exp => {
       const expDate = new Date(exp.date);
       expDate.setHours(0,0,0,0);
       const diffTime = today.getTime() - expDate.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
       if (diffDays >= 0 && diffDays < 30) {
-        trend[29 - diffDays] += exp.amount;
+        if (diffDays > maxDiffDays) maxDiffDays = diffDays;
+      }
+    });
+
+    const numDays = Math.max(1, maxDiffDays + 1);
+    
+    const trend = Array(numDays).fill(0);
+    expenses.forEach(exp => {
+      const expDate = new Date(exp.date);
+      expDate.setHours(0,0,0,0);
+      const diffTime = today.getTime() - expDate.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
+      if (diffDays >= 0 && diffDays < numDays) {
+        trend[(numDays - 1) - diffDays] += exp.amount;
       }
     });
     
@@ -129,16 +142,17 @@ export default function FinancialOverview() {
     const normalizedTrend = trend.map(val => (val / maxTrend) * 100);
 
     const xLabels = [];
-    for (let i = 0; i < 30; i += 7) {
+    const step = Math.max(1, Math.floor(numDays / 4));
+    for (let i = 0; i < numDays; i += step) {
       const d = new Date(today);
-      d.setDate(d.getDate() - (29 - i));
+      d.setDate(d.getDate() - ((numDays - 1) - i));
       xLabels.push({ index: i, label: format(d, 'MMM d') });
     }
-    if (xLabels[xLabels.length - 1].index !== 29) {
-      xLabels.push({ index: 29, label: format(today, 'MMM d') });
+    if (xLabels[xLabels.length - 1].index !== (numDays - 1)) {
+      xLabels.push({ index: numDays - 1, label: format(today, 'MMM d') });
     }
 
-    return { total: t, categoryTotals: catTotals, topCategory: topCat, recentTx: sorted.slice(0, 5), trend: normalizedTrend, maxTrend, xLabels };
+    return { total: t, categoryTotals: catTotals, topCategory: topCat, recentTx: sorted.slice(0, 5), trend: normalizedTrend, maxTrend, xLabels, numDays };
   }, [expenses]);
 
   const formatCurrency = (amount: number) => {
@@ -257,7 +271,7 @@ export default function FinancialOverview() {
                   </linearGradient>
                 </defs>
                 <polyline 
-                  points={trend.map((h, i) => `${(i / 29) * 300},${100 - h}`).join(' ')} 
+                  points={trend.map((h, i) => `${(i / Math.max(1, numDays - 1)) * 300},${100 - h}`).join(' ')} 
                   fill="none" 
                   stroke="#4338ca" 
                   strokeWidth="3" 
@@ -265,7 +279,7 @@ export default function FinancialOverview() {
                   strokeLinejoin="round" 
                 />
                 <polygon 
-                  points={`0,100 ${trend.map((h, i) => `${(i / 29) * 300},${100 - h}`).join(' ')} 300,100`} 
+                  points={`0,100 ${trend.map((h, i) => `${(i / Math.max(1, numDays - 1)) * 300},${100 - h}`).join(' ')} 300,100`} 
                   fill="url(#trendGradient)" 
                 />
               </svg>
@@ -277,7 +291,7 @@ export default function FinancialOverview() {
                 <span 
                   key={xl.index} 
                   className="absolute text-[10px] font-bold text-gray-400 -translate-x-1/2 whitespace-nowrap"
-                  style={{ left: `${(xl.index / 29) * 100}%` }}
+                  style={{ left: `${(xl.index / Math.max(1, numDays - 1)) * 100}%` }}
                 >
                   {xl.label}
                 </span>

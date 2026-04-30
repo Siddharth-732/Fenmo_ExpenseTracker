@@ -12,7 +12,8 @@ import {
   Plus, 
   Search, 
   Bell, 
-  Moon, 
+  Moon,
+  Sun,
   HelpCircle,
   X,
   Loader2,
@@ -37,6 +38,29 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  React.useEffect(() => {
+    if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      setIsDarkMode(true);
+      document.documentElement.classList.add('dark');
+    } else {
+      setIsDarkMode(false);
+      document.documentElement.classList.remove('dark');
+    }
+  }, []);
+
+  const toggleDarkMode = () => {
+    if (isDarkMode) {
+      document.documentElement.classList.remove('dark');
+      localStorage.theme = 'light';
+      setIsDarkMode(false);
+    } else {
+      document.documentElement.classList.add('dark');
+      localStorage.theme = 'dark';
+      setIsDarkMode(true);
+    }
+  };
 
   const handleAddExpense = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -139,8 +163,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             <button className="p-2.5 text-gray-500 hover:text-gray-900 bg-white rounded-full shadow-sm transition-colors hover:shadow">
               <Bell className="w-5 h-5" />
             </button>
-            <button className="p-2.5 text-gray-500 hover:text-gray-900 bg-white rounded-full shadow-sm transition-colors hover:shadow">
-              <Moon className="w-5 h-5" />
+            <button onClick={toggleDarkMode} className="p-2.5 text-gray-500 hover:text-gray-900 bg-white rounded-full shadow-sm transition-colors hover:shadow">
+              {isDarkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
             <button className="p-2.5 text-gray-500 hover:text-gray-900 bg-white rounded-full shadow-sm transition-colors hover:shadow">
               <HelpCircle className="w-5 h-5" />
