@@ -14,5 +14,29 @@
     "description": "movie",
     "date": "2026-04-30",
     "created_at": "2026-04-30T17:20:08.555Z"
+  },
+  {
+    "id": "ee461123-6012-41c2-bb23-2f3e0473812f",
+    "amount": 100,
+    "category": "Shopping",
+    "description": "cloths",
+    "date": "2026-04-29",
+    "created_at": "2026-04-30T17:32:36.257Z"
+  },
+  {
+    "id": "d035c035-1b1f-44aa-836d-fb36652b012f",
+    "amount": 150,
+    "category": "Transportation",
+    "description": "Accescrosr",
+    "date": "2026-04-28",
+    "created_at": "2026-04-30T17:33:05.703Z"
+  },
+  {
+    "id": "6bcc33e6-d7be-44c8-b902-f7a154c04526",
+    "amount": 500,
+    "category": "Housing",
+    "description": "ghar",
+    "date": "2026-04-26",
+    "created_at": "2026-04-30T17:47:33.336Z"
   }
 ]

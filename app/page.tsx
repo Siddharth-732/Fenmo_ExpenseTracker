@@ -62,7 +62,7 @@ export default function FinancialOverview() {
     fetchExpenses();
   }, []);
 
-  const { total, categoryTotals, topCategory, recentTx } = useMemo(() => {
+  const { total, categoryTotals, topCategory, recentTx, trend, maxTrend, xLabels } = useMemo(() => {
     let t = 0;
     const catTotals: Record<string, number> = {};
     
@@ -81,7 +81,34 @@ export default function FinancialOverview() {
       }
     });
 
-    return { total: t, categoryTotals: catTotals, topCategory: topCat, recentTx: sorted.slice(0, 5) };
+    const trend = Array(30).fill(0);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    expenses.forEach(exp => {
+      const expDate = new Date(exp.date);
+      expDate.setHours(0,0,0,0);
+      const diffTime = today.getTime() - expDate.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)); 
+      if (diffDays >= 0 && diffDays < 30) {
+        trend[29 - diffDays] += exp.amount;
+      }
+    });
+    
+    const maxTrend = Math.max(...trend, 1);
+    const normalizedTrend = trend.map(val => (val / maxTrend) * 100);
+
+    const xLabels = [];
+    for (let i = 0; i < 30; i += 7) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - (29 - i));
+      xLabels.push({ index: i, label: format(d, 'MMM d') });
+    }
+    if (xLabels[xLabels.length - 1].index !== 29) {
+      xLabels.push({ index: 29, label: format(today, 'MMM d') });
+    }
+
+    return { total: t, categoryTotals: catTotals, topCategory: topCat, recentTx: sorted.slice(0, 5), trend: normalizedTrend, maxTrend, xLabels };
   }, [expenses]);
 
   const formatCurrency = (amount: number) => {
@@ -109,7 +136,7 @@ export default function FinancialOverview() {
       </div>
 
       {/* Top Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Total Expenses */}
         <div className="bg-white rounded-[24px] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group flex flex-col justify-between">
           <div>
@@ -148,21 +175,6 @@ export default function FinancialOverview() {
             </div>
           </div>
         </div>
-
-        {/* Transfer Funds */}
-        <div className="bg-white rounded-[24px] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between">
-          <div>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-500 flex items-center justify-center mb-6">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <h3 className="text-lg font-bold text-[#1a1a2e] mb-2">Transfer Funds</h3>
-            <p className="text-sm text-gray-500 font-medium leading-relaxed">Move money between accounts instantly.</p>
-          </div>
-          <button className="mt-6 text-[#4338ca] font-bold text-sm flex items-center gap-2 hover:gap-3 transition-all">
-            Initialize Transfer <ArrowRight className="w-4 h-4" />
-          </button>
-        </div>
-
       </div>
 
       {/* Middle Row Charts */}
@@ -175,23 +187,55 @@ export default function FinancialOverview() {
             <span className="text-xs font-bold text-gray-400 tracking-wider uppercase">Last 30 Days</span>
           </div>
           
-          <div className="h-48 flex items-end justify-between gap-4 relative">
-            <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+          <div className="h-64 relative pl-12 pb-6 mt-4">
+            {/* Y-Axis Labels */}
+            <div className="absolute left-0 top-0 bottom-6 w-10 flex flex-col justify-between text-[10px] font-bold text-gray-400 text-right pr-2">
+              <span>{formatCurrency(maxTrend).split('.')[0]}</span>
+              <span>{formatCurrency(maxTrend / 2).split('.')[0]}</span>
+              <span>₹0</span>
+            </div>
+            
+            <div className="absolute inset-0 left-12 bottom-6 flex flex-col justify-between pointer-events-none">
               <div className="w-full h-px bg-gray-100"></div>
               <div className="w-full h-px bg-gray-100"></div>
               <div className="w-full h-px bg-gray-100"></div>
             </div>
             
-            {[40, 60, 30, 85, 45, 65, 90].map((height, i) => (
-              <div key={i} className="w-full flex justify-center group relative z-10">
-                <div 
-                  className={`w-full max-w-[40px] rounded-t-sm transition-all duration-300 group-hover:opacity-80 ${i === 6 ? 'bg-red-200 border-t-2 border-red-500' : 'bg-indigo-200'}`}
-                  style={{ height: `${height}%` }}
+            <div className="relative w-full h-full">
+              <svg viewBox="0 0 300 100" className="w-full h-full overflow-visible z-10" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#4338ca" stopOpacity="0.2" />
+                    <stop offset="100%" stopColor="#4338ca" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+                <polyline 
+                  points={trend.map((h, i) => `${(i / 29) * 300},${100 - h}`).join(' ')} 
+                  fill="none" 
+                  stroke="#4338ca" 
+                  strokeWidth="3" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                />
+                <polygon 
+                  points={`0,100 ${trend.map((h, i) => `${(i / 29) * 300},${100 - h}`).join(' ')} 300,100`} 
+                  fill="url(#trendGradient)" 
+                />
+              </svg>
+            </div>
+
+            {/* X-Axis Labels */}
+            <div className="absolute left-12 right-0 bottom-0 h-4 mt-2">
+              {xLabels.map((xl) => (
+                <span 
+                  key={xl.index} 
+                  className="absolute text-[10px] font-bold text-gray-400 -translate-x-1/2 whitespace-nowrap"
+                  style={{ left: `${(xl.index / 29) * 100}%` }}
                 >
-                  {i === 3 && <div className="absolute top-0 left-0 w-full border-t-2 border-indigo-500"></div>}
-                </div>
-              </div>
-            ))}
+                  {xl.label}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
