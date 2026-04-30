@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { 
   ArrowUpRight, 
   Flame, 
@@ -12,37 +12,119 @@ import {
   ShoppingCart,
   Zap,
   Car,
-  Briefcase
+  Briefcase,
+  Utensils,
+  Home,
+  Film,
+  Plane,
+  ShoppingBag,
+  Loader2,
+  Receipt
 } from "lucide-react";
+import { format } from "date-fns";
+
+interface Expense {
+  id: string;
+  amount: number;
+  category: string;
+  description: string;
+  date: string;
+  created_at: string;
+}
+
+const CATEGORY_MAP: Record<string, { icon: React.ElementType, color: string }> = {
+  "Food & Dining": { icon: Utensils, color: "#4ade80" },
+  "Housing": { icon: Home, color: "#4338ca" },
+  "Transportation": { icon: Car, color: "#8b4513" },
+  "Entertainment": { icon: Film, color: "#f59e0b" },
+  "Travel": { icon: Plane, color: "#06b6d4" },
+  "Shopping": { icon: ShoppingBag, color: "#a855f7" }
+};
 
 export default function FinancialOverview() {
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchExpenses = async () => {
+      try {
+        const res = await fetch("/api/expenses");
+        if (res.ok) {
+          const data = await res.json();
+          setExpenses(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch expenses", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchExpenses();
+  }, []);
+
+  const { total, categoryTotals, topCategory, recentTx } = useMemo(() => {
+    let t = 0;
+    const catTotals: Record<string, number> = {};
+    
+    // Sort descending by date
+    const sorted = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    
+    sorted.forEach(exp => {
+      t += exp.amount;
+      catTotals[exp.category] = (catTotals[exp.category] || 0) + exp.amount;
+    });
+
+    let topCat = { name: "N/A", amount: 0, percentage: 0 };
+    Object.entries(catTotals).forEach(([cat, amount]) => {
+      if (amount > topCat.amount) {
+        topCat = { name: cat, amount, percentage: t > 0 ? (amount / t) * 100 : 0 };
+      }
+    });
+
+    return { total: t, categoryTotals: catTotals, topCategory: topCat, recentTx: sorted.slice(0, 5) };
+  }, [expenses]);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center pt-32">
+        <Loader2 className="w-8 h-8 animate-spin text-[#4338ca]" />
+      </div>
+    );
+  }
+
+  // Calculate SVGs for donut chart
+  let currentOffset = 0;
+  const circumference = 251.2; // 2 * pi * 40
+
   return (
     <div className="max-w-6xl mx-auto space-y-8">
       {/* Header */}
       <div>
         <h2 className="text-3xl font-bold text-[#1a1a2e] tracking-tight">Financial Overview</h2>
-        <p className="text-gray-500 mt-2 font-medium">Here is your spending summary for October 2023.</p>
+        <p className="text-gray-500 mt-2 font-medium">Here is your spending summary based on your logged expenses.</p>
       </div>
 
       {/* Top Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
         {/* Total Expenses */}
         <div className="bg-white rounded-[24px] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group flex flex-col justify-between">
           <div>
             <h3 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Total Expenses</h3>
             <div className="flex items-start justify-between">
-              <h2 className="text-4xl font-bold text-[#1a1a2e] tracking-tight">$4,250.00</h2>
+              <h2 className="text-4xl font-bold text-[#1a1a2e] tracking-tight">{formatCurrency(total)}</h2>
               <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center text-red-500">
                 <ArrowUpRight className="w-5 h-5" />
               </div>
             </div>
           </div>
           <div className="mt-8 flex items-center gap-3">
-            <span className="bg-red-50 text-red-600 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
-              <ArrowUpRight className="w-3 h-3" /> 12%
+            <span className="bg-gray-50 text-gray-600 text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+              {expenses.length} Records
             </span>
-            <span className="text-gray-400 text-sm font-medium">vs last month</span>
           </div>
         </div>
 
@@ -50,34 +132,19 @@ export default function FinancialOverview() {
         <div className="bg-white rounded-[24px] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Savings Streak</h3>
+              <h3 className="text-xs font-bold text-gray-400 tracking-wider uppercase mb-2">Top Category</h3>
               <div className="flex items-baseline gap-2">
-                <h2 className="text-4xl font-bold text-emerald-500 tracking-tight">14</h2>
-                <span className="text-gray-400 font-bold text-lg">Days</span>
+                <h2 className="text-3xl font-bold text-[#1a1a2e] tracking-tight">{topCategory.name}</h2>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-500 shadow-sm shadow-emerald-200">
-              <Flame className="w-6 h-6 fill-current" />
+            <div className="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-[#4338ca] shadow-sm">
+              <Trophy className="w-6 h-6" />
             </div>
           </div>
           <div className="mt-6 flex justify-between items-center gap-2">
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-[#4338ca] text-white flex items-center justify-center shadow-md">
-                <Star className="w-4 h-4 fill-current" />
-              </div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Under Budget</span>
-            </div>
-            <div className="flex flex-col items-center gap-2 opacity-50">
-              <div className="w-10 h-10 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center">
-                <Trophy className="w-4 h-4" />
-              </div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">30 Day Streak</span>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <div className="w-10 h-10 rounded-full bg-amber-500 text-white flex items-center justify-center shadow-md">
-                <Target className="w-4 h-4" />
-              </div>
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider text-center">Goal Met</span>
+            <div className="flex flex-col items-start gap-1">
+              <span className="text-lg font-bold text-[#1a1a2e]">{formatCurrency(topCategory.amount)}</span>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{Math.round(topCategory.percentage)}% of total</span>
             </div>
           </div>
         </div>
@@ -109,14 +176,12 @@ export default function FinancialOverview() {
           </div>
           
           <div className="h-48 flex items-end justify-between gap-4 relative">
-            {/* Horizontal Grid lines */}
             <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
               <div className="w-full h-px bg-gray-100"></div>
               <div className="w-full h-px bg-gray-100"></div>
               <div className="w-full h-px bg-gray-100"></div>
             </div>
             
-            {/* Mock Bars */}
             {[40, 60, 30, 85, 45, 65, 90].map((height, i) => (
               <div key={i} className="w-full flex justify-center group relative z-10">
                 <div 
@@ -134,43 +199,55 @@ export default function FinancialOverview() {
         <div className="bg-white rounded-[24px] p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
           <h3 className="text-lg font-bold text-[#1a1a2e] mb-6">Category Distribution</h3>
           
-          <div className="relative w-40 h-40 mx-auto mb-8">
-            {/* Mock Donut Chart with SVG */}
-            <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full">
-              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f3f4f6" strokeWidth="12" />
-              {/* Transportation (Brown) 15% */}
-              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#8b4513" strokeWidth="12" strokeDasharray="251.2" strokeDashoffset="213.52" />
-              {/* Food & Dining (Mint) 25% */}
-              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#4ade80" strokeWidth="12" strokeDasharray="251.2" strokeDashoffset="150.72" className="transform origin-center rotate-[54deg]" />
-              {/* Housing (Blue) 45% */}
-              <circle cx="50" cy="50" r="40" fill="transparent" stroke="#4338ca" strokeWidth="12" strokeDasharray="251.2" strokeDashoffset="138.16" className="transform origin-center rotate-[144deg]" />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Top Exp</span>
-              <span className="text-sm font-bold text-[#1a1a2e]">Housing</span>
-            </div>
-          </div>
+          {total === 0 ? (
+            <div className="text-center text-gray-400 py-12">No data yet</div>
+          ) : (
+            <>
+              <div className="relative w-40 h-40 mx-auto mb-8">
+                <svg viewBox="0 0 100 100" className="transform -rotate-90 w-full h-full">
+                  <circle cx="50" cy="50" r="40" fill="transparent" stroke="#f3f4f6" strokeWidth="12" />
+                  {Object.entries(categoryTotals).map(([cat, amount], idx) => {
+                    const percentage = amount / total;
+                    const dashArray = circumference;
+                    const dashOffset = circumference - (percentage * circumference);
+                    const rotation = (currentOffset / total) * 360;
+                    currentOffset += amount;
+                    
+                    return (
+                      <circle 
+                        key={cat}
+                        cx="50" cy="50" r="40" 
+                        fill="transparent" 
+                        stroke={CATEGORY_MAP[cat]?.color || "#4338ca"} 
+                        strokeWidth="12" 
+                        strokeDasharray={dashArray} 
+                        strokeDashoffset={dashOffset} 
+                        className="origin-center"
+                        style={{ transform: `rotate(${rotation}deg)` }}
+                      />
+                    );
+                  })}
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-[10px] font-bold text-gray-400 tracking-widest uppercase">Top Exp</span>
+                  <span className="text-sm font-bold text-[#1a1a2e]">{topCategory.name === "Food & Dining" ? "Food" : topCategory.name}</span>
+                </div>
+              </div>
 
-          <div className="space-y-3">
-            <div className="flex justify-between items-center text-sm">
-              <div className="flex items-center gap-2 font-semibold text-[#1a1a2e]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#4338ca]"></span> Housing
+              <div className="space-y-3 max-h-32 overflow-y-auto pr-2 custom-scrollbar">
+                {Object.entries(categoryTotals)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([cat, amount]) => (
+                  <div key={cat} className="flex justify-between items-center text-sm">
+                    <div className="flex items-center gap-2 font-semibold text-[#1a1a2e] truncate max-w-[120px]">
+                      <span className="w-2.5 h-2.5 rounded-full min-w-[10px]" style={{ backgroundColor: CATEGORY_MAP[cat]?.color || "#4338ca" }}></span> {cat}
+                    </div>
+                    <span className="text-gray-500 font-medium">{Math.round((amount / total) * 100)}%</span>
+                  </div>
+                ))}
               </div>
-              <span className="text-gray-500 font-medium">45%</span>
-            </div>
-            <div className="flex justify-between items-center text-sm">
-              <div className="flex items-center gap-2 font-semibold text-[#1a1a2e]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#4ade80]"></span> Food & Dining
-              </div>
-              <span className="text-gray-500 font-medium">25%</span>
-            </div>
-            <div className="flex justify-between items-center text-sm">
-              <div className="flex items-center gap-2 font-semibold text-[#1a1a2e]">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#8b4513]"></span> Transportation
-              </div>
-              <span className="text-gray-500 font-medium">15%</span>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -193,35 +270,35 @@ export default function FinancialOverview() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {[
-                { merchant: "Whole Foods Market", cat: "Groceries", date: "Oct 24, 2023", amount: "-$142.50", status: "Complete", icon: ShoppingCart },
-                { merchant: "Pacific Gas & Electric", cat: "Utilities", date: "Oct 22, 2023", amount: "-$85.20", status: "Complete", icon: Zap },
-                { merchant: "Uber Rides", cat: "Transportation", date: "Oct 21, 2023", amount: "-$24.90", status: "Pending", icon: Car },
-                { merchant: "TechCorp Inc. Salary", cat: "Income", date: "Oct 15, 2023", amount: "+$3,250.00", status: "Complete", icon: Briefcase, positive: true },
-              ].map((tx, idx) => (
-                <tr key={idx} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-8 py-5">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600">
-                        <tx.icon className="w-4 h-4" />
-                      </div>
-                      <span className="font-bold text-[#1a1a2e]">{tx.merchant}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5 text-gray-500 font-medium">{tx.cat}</td>
-                  <td className="px-8 py-5 text-gray-500 font-medium">{tx.date}</td>
-                  <td className={`px-8 py-5 font-bold text-right ${tx.positive ? 'text-emerald-500' : 'text-[#1a1a2e]'}`}>
-                    {tx.amount}
-                  </td>
-                  <td className="px-8 py-5 text-center">
-                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-                      tx.status === 'Complete' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
-                    }`}>
-                      {tx.status}
-                    </span>
-                  </td>
+              {recentTx.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-8 py-8 text-center text-gray-400">No recent transactions. Add an expense!</td>
                 </tr>
-              ))}
+              ) : recentTx.map((tx) => {
+                const Icon = CATEGORY_MAP[tx.category]?.icon || Receipt;
+                return (
+                  <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-8 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-600">
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <span className="font-bold text-[#1a1a2e]">{tx.description}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-5 text-gray-500 font-medium">{tx.category}</td>
+                    <td className="px-8 py-5 text-gray-500 font-medium">{format(new Date(tx.date), "MMM d, yyyy")}</td>
+                    <td className="px-8 py-5 font-bold text-right text-[#1a1a2e]">
+                      {formatCurrency(tx.amount)}
+                    </td>
+                    <td className="px-8 py-5 text-center">
+                      <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-600">
+                        Complete
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

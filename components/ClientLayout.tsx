@@ -78,7 +78,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   ];
 
   return (
-    <div className="flex h-full w-full bg-[#f4f7fe]">
+    <div className="flex flex-1 min-h-screen w-full bg-[#f4f7fe]">
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-100 flex flex-col fixed h-full z-20 hidden md:flex shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <div className="p-6 flex items-center gap-3">
