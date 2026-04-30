@@ -24,6 +24,7 @@ import {
   Plane,
   ShoppingBag,
 } from "lucide-react";
+import { saveExpense } from "@/lib/localDb";
 
 const CATEGORIES = [
   {
@@ -121,13 +122,12 @@ export default function ClientLayout({
 
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/expenses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount, category, description, date }),
+      await saveExpense({
+        amount: Number(amount),
+        category: category.toString(),
+        description: description.toString(),
+        date: date.toString()
       });
-
-      if (!res.ok) throw new Error("Failed to add expense");
 
       // Optionally trigger a re-fetch of expenses here if we had a global context
       setIsAddModalOpen(false);

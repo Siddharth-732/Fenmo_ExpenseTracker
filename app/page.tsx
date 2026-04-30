@@ -22,15 +22,9 @@ import {
   Receipt
 } from "lucide-react";
 import { format } from "date-fns";
+import { getExpenses, Expense } from "@/lib/localDb";
 
-interface Expense {
-  id: string;
-  amount: number;
-  category: string;
-  description: string;
-  date: string;
-  created_at: string;
-}
+// Using Expense interface from localDb
 
 const CATEGORY_MAP: Record<string, { icon: React.ElementType, color: string }> = {
   "Food & Dining": { icon: Utensils, color: "#4ade80" },
@@ -50,11 +44,8 @@ export default function FinancialOverview() {
   useEffect(() => {
     const fetchExpenses = async () => {
       try {
-        const res = await fetch("/api/expenses");
-        if (res.ok) {
-          const data = await res.json();
-          setExpenses(data);
-        }
+        const data = await getExpenses();
+        setExpenses(data);
       } catch (error) {
         console.error("Failed to fetch expenses", error);
       } finally {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Loader2, Plus, Target, Minus, ArrowRight } from "lucide-react";
-import { Goal } from "@/lib/db";
+import { getGoals, saveGoal as dbSaveGoal, updateGoalAmount as dbUpdateGoalAmount, Goal } from "@/lib/localDb";
 
 export default function GoalsPage() {
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -21,11 +21,8 @@ export default function GoalsPage() {
 
   const fetchGoals = async () => {
     try {
-      const res = await fetch("/api/goals");
-      if (res.ok) {
-        const data = await res.json();
-        setGoals(data);
-      }
+      const data = await getGoals();
+      setGoals(data);
     } catch (error) {
       console.error("Failed to load goals", error);
     } finally {
@@ -45,16 +42,9 @@ export default function GoalsPage() {
 
     setIsAdding(true);
     try {
-      const res = await fetch("/api/goals", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, targetAmount }),
-      });
-      if (res.ok) {
-        const newGoal = await res.json();
-        setGoals(prev => [...prev, newGoal]);
-        setIsAddModalOpen(false);
-      }
+      const newGoal = await dbSaveGoal({ title, targetAmount });
+      setGoals(prev => [...prev, newGoal]);
+      setIsAddModalOpen(false);
     } catch (error) {
       alert("Failed to create goal.");
     } finally {
@@ -77,17 +67,10 @@ export default function GoalsPage() {
 
     setIsAdjusting(true);
     try {
-      const res = await fetch("/api/goals", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: goal.id, currentAmount: newCurrentAmount }),
-      });
-      if (res.ok) {
-        const updatedGoal = await res.json();
-        setGoals(prev => prev.map(g => g.id === updatedGoal.id ? updatedGoal : g));
-        setAdjustingGoalId(null);
-        setAdjustAmount("");
-      }
+      const updatedGoal = await dbUpdateGoalAmount(goal.id, newCurrentAmount);
+      setGoals(prev => prev.map(g => g.id === updatedGoal.id ? updatedGoal : g));
+      setAdjustingGoalId(null);
+      setAdjustAmount("");
     } catch (error) {
       alert("Failed to update goal.");
     } finally {

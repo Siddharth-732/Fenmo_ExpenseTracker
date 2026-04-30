@@ -16,15 +16,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useSearchParams } from "next/navigation";
-
-interface Expense {
-  id: string;
-  amount: number;
-  category: string;
-  description: string;
-  date: string;
-  created_at: string;
-}
+import { getExpenses, getBudget, saveBudget as dbSaveBudget, updateExpense as dbUpdateExpense, Expense } from "@/lib/localDb";
 
 const CATEGORIES = [
   { name: "Food & Dining", icon: Utensils, color: "bg-red-500", light: "bg-red-100", text: "text-red-600" },
@@ -57,19 +49,13 @@ function ExpensesContent() {
     setLoading(true);
     setError("");
     try {
-      const [expRes, budgetRes] = await Promise.all([
-        fetch("/api/expenses"),
-        fetch("/api/budget")
+      const [expData, budgetData] = await Promise.all([
+        getExpenses(),
+        getBudget()
       ]);
       
-      if (!expRes.ok) throw new Error("Failed to fetch expenses");
-      const data = await expRes.json();
-      setExpenses(data);
-
-      if (budgetRes.ok) {
-        const budgetData = await budgetRes.json();
-        setBudget(budgetData.amount || 0);
-      }
+      setExpenses(expData);
+      setBudget(budgetData || 0);
     } catch (err) {
       setError("Failed to load expenses. Please try again.");
     } finally {
@@ -136,15 +122,13 @@ function ExpensesContent() {
 
     setIsEditSubmitting(true);
     try {
-      const res = await fetch("/api/expenses", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: editingExpense.id, amount, category, description, date }),
+      const updatedExp = await dbUpdateExpense(editingExpense.id, {
+        amount: Number(amount),
+        category: category.toString(),
+        description: description.toString(),
+        date: date.toString()
       });
 
-      if (!res.ok) throw new Error("Failed to edit expense");
-      
-      const updatedExp = await res.json();
       setExpenses((prev) => prev.map(exp => exp.id === updatedExp.id ? updatedExp : exp));
       setEditingExpense(null);
     } catch (err) {
@@ -164,13 +148,7 @@ function ExpensesContent() {
 
     setIsBudgetSubmitting(true);
     try {
-      const res = await fetch("/api/budget", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount }),
-      });
-
-      if (!res.ok) throw new Error("Failed to save budget");
+      await dbSaveBudget(amount);
       
       setBudget(amount);
       setIsBudgetModalOpen(false);
