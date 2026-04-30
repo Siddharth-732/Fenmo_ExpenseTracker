@@ -371,13 +371,12 @@ export default function FinancialOverview() {
                 <th className="px-8 py-4 text-xs font-bold text-gray-400 tracking-wider uppercase">Category</th>
                 <th className="px-8 py-4 text-xs font-bold text-gray-400 tracking-wider uppercase">Date</th>
                 <th className="px-8 py-4 text-xs font-bold text-gray-400 tracking-wider uppercase text-right">Amount</th>
-                <th className="px-8 py-4 text-xs font-bold text-gray-400 tracking-wider uppercase text-center">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {recentTx.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-8 py-8 text-center text-gray-400">No recent transactions. Add an expense!</td>
+                  <td colSpan={4} className="px-8 py-8 text-center text-gray-400">No recent transactions. Add an expense!</td>
                 </tr>
               ) : recentTx.map((tx) => {
                 const Icon = CATEGORY_MAP[tx.category]?.icon || Receipt;
@@ -395,11 +394,6 @@ export default function FinancialOverview() {
                     <td className="px-8 py-5 text-gray-500 font-medium">{format(new Date(tx.date), "MMM d, yyyy")}</td>
                     <td className="px-8 py-5 font-bold text-right text-[#1a1a2e]">
                       {formatCurrency(tx.amount)}
-                    </td>
-                    <td className="px-8 py-5 text-center">
-                      <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-600">
-                        Complete
-                      </span>
                     </td>
                   </tr>
                 );

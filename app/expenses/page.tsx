@@ -15,6 +15,7 @@ import {
   Loader2
 } from "lucide-react";
 import { format } from "date-fns";
+import { useSearchParams } from "next/navigation";
 
 interface Expense {
   id: string;
@@ -34,7 +35,10 @@ const CATEGORIES = [
   { name: "Shopping", icon: ShoppingBag, color: "bg-purple-500", light: "bg-purple-100", text: "text-purple-600" },
 ];
 
-export default function Expenses() {
+function ExpensesContent() {
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams?.get('search')?.toLowerCase() || "";
+
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -75,9 +79,18 @@ export default function Expenses() {
 
   const { filteredAndSorted, totalVisible, highestCategory } = useMemo(() => {
     let result = [...expenses];
+    
+    if (searchQuery) {
+      result = result.filter(e => 
+        e.description.toLowerCase().includes(searchQuery) || 
+        e.category.toLowerCase().includes(searchQuery)
+      );
+    }
+
     if (filterCategory !== "All") {
       result = result.filter(e => e.category === filterCategory);
     }
+
     result.sort((a, b) => {
       const timeA = new Date(a.date).getTime();
       const timeB = new Date(b.date).getTime();
@@ -100,7 +113,7 @@ export default function Expenses() {
     });
 
     return { filteredAndSorted: result, totalVisible: total, highestCategory: highestCat };
-  }, [expenses, filterCategory, sortOrder]);
+  }, [expenses, filterCategory, sortOrder, searchQuery]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
@@ -457,5 +470,17 @@ export default function Expenses() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function Expenses() {
+  return (
+    <React.Suspense fallback={
+      <div className="flex h-full items-center justify-center pt-32">
+        <Loader2 className="w-8 h-8 animate-spin text-[#4338ca]" />
+      </div>
+    }>
+      <ExpensesContent />
+    </React.Suspense>
   );
 }
