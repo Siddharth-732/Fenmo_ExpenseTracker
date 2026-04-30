@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getExpenses, saveExpense, Expense } from '@/lib/db';
+import { getExpenses, saveExpense, updateExpense, Expense } from '@/lib/db';
 import crypto from 'crypto';
 
 export async function GET(request: Request) {
@@ -57,5 +57,33 @@ export async function POST(request: Request) {
     return NextResponse.json(newExpense, { status: 201 });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create expense' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, amount, category, description, date } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Missing expense ID' }, { status: 400 });
+    }
+
+    const updatedExpense = updateExpense(id, {
+      ...(amount && { amount: Number(amount) }),
+      ...(category && { category }),
+      ...(description && { description }),
+      ...(date && { date }),
+    });
+
+    if (!updatedExpense) {
+      return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    return NextResponse.json(updatedExpense);
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to update expense' }, { status: 500 });
   }
 }

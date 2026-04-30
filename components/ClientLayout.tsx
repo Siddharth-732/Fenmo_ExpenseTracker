@@ -73,7 +73,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Expenses", href: "/expenses", icon: Receipt },
-    { name: "Budgets", href: "/budgets", icon: Wallet },
     { name: "Goals", href: "/goals", icon: Target },
   ];
 

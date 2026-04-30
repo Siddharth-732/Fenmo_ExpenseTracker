@@ -32,3 +32,33 @@ export const saveExpense = (expense: Expense): void => {
   expenses.push(expense);
   fs.writeFileSync(dbFilePath, JSON.stringify(expenses, null, 2));
 };
+
+export const updateExpense = (id: string, updatedData: Partial<Expense>): Expense | null => {
+  const expenses = getExpenses();
+  const index = expenses.findIndex(e => e.id === id);
+  if (index !== -1) {
+    expenses[index] = { ...expenses[index], ...updatedData };
+    fs.writeFileSync(dbFilePath, JSON.stringify(expenses, null, 2));
+    return expenses[index];
+  }
+  return null;
+};
+
+const budgetFilePath = path.join(process.cwd(), 'budget.json');
+
+if (!fs.existsSync(budgetFilePath)) {
+  fs.writeFileSync(budgetFilePath, JSON.stringify({ amount: 1000 }));
+}
+
+export const getBudget = (): number => {
+  try {
+    const data = fs.readFileSync(budgetFilePath, 'utf-8');
+    return JSON.parse(data).amount || 0;
+  } catch (error) {
+    return 1000;
+  }
+};
+
+export const saveBudget = (amount: number): void => {
+  fs.writeFileSync(budgetFilePath, JSON.stringify({ amount }, null, 2));
+};

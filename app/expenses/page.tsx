@@ -41,6 +41,9 @@ export default function Expenses() {
   
   const [filterCategory, setFilterCategory] = useState<string>("All");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [budget, setBudget] = useState<number>(0);
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [isBudgetSubmitting, setIsBudgetSubmitting] = useState(false);
 
   useEffect(() => {
     fetchExpenses();
@@ -50,10 +53,19 @@ export default function Expenses() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/expenses");
-      if (!res.ok) throw new Error("Failed to fetch");
-      const data = await res.json();
+      const [expRes, budgetRes] = await Promise.all([
+        fetch("/api/expenses"),
+        fetch("/api/budget")
+      ]);
+      
+      if (!expRes.ok) throw new Error("Failed to fetch expenses");
+      const data = await expRes.json();
       setExpenses(data);
+
+      if (budgetRes.ok) {
+        const budgetData = await budgetRes.json();
+        setBudget(budgetData.amount || 0);
+      }
     } catch (err) {
       setError("Failed to load expenses. Please try again.");
     } finally {
@@ -79,6 +91,71 @@ export default function Expenses() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
   };
+
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+
+  const handleEditExpense = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (isEditSubmitting || !editingExpense) return;
+
+    const formData = new FormData(e.currentTarget);
+    const amount = formData.get("amount");
+    const category = formData.get("category");
+    const description = formData.get("description");
+    const date = formData.get("date");
+
+    if (!amount || !category || !description || !date) return;
+
+    setIsEditSubmitting(true);
+    try {
+      const res = await fetch("/api/expenses", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: editingExpense.id, amount, category, description, date }),
+      });
+
+      if (!res.ok) throw new Error("Failed to edit expense");
+      
+      const updatedExp = await res.json();
+      setExpenses((prev) => prev.map(exp => exp.id === updatedExp.id ? updatedExp : exp));
+      setEditingExpense(null);
+    } catch (err) {
+      alert("Failed to update expense.");
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  };
+
+  const handleSetBudget = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (isBudgetSubmitting) return;
+
+    const formData = new FormData(e.currentTarget);
+    const amount = Number(formData.get("budget"));
+    if (isNaN(amount) || amount <= 0) return;
+
+    setIsBudgetSubmitting(true);
+    try {
+      const res = await fetch("/api/budget", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
+
+      if (!res.ok) throw new Error("Failed to save budget");
+      
+      setBudget(amount);
+      setIsBudgetModalOpen(false);
+    } catch (err) {
+      alert("Failed to save budget.");
+    } finally {
+      setIsBudgetSubmitting(false);
+    }
+  };
+
+  const budgetPercentage = budget > 0 ? Math.min((totalVisible / budget) * 100, 100) : 0;
+  const isOverBudget = totalVisible >= budget && budget > 0;
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -123,11 +200,25 @@ export default function Expenses() {
               {filteredAndSorted.length} Transactions
             </div>
           </div>
-          <div className="flex items-end gap-4 relative z-10">
-            <h2 className="text-5xl font-bold text-[#1a1a2e] tracking-tight">{formatCurrency(totalVisible)}</h2>
+          <div className="flex items-end gap-4 relative z-10 justify-between">
+            <div>
+              <h2 className="text-5xl font-bold text-[#1a1a2e] tracking-tight">{formatCurrency(totalVisible)}</h2>
+              <p className="text-gray-500 font-medium text-sm mt-2">
+                Monthly Budget: <span className="font-bold text-[#1a1a2e]">{formatCurrency(budget)}</span>
+              </p>
+            </div>
+            <button 
+              onClick={() => setIsBudgetModalOpen(true)}
+              className="text-sm font-bold text-[#4338ca] hover:text-[#3730a3] transition-colors bg-indigo-50 px-4 py-2 rounded-xl"
+            >
+              Set Budget
+            </button>
           </div>
           <div className="mt-8 h-3 w-full bg-gray-100 rounded-full overflow-hidden relative z-10">
-            <div className="h-full bg-gradient-to-r from-[#4338ca] to-[#3b82f6] w-[70%] rounded-full" />
+            <div 
+              className={`h-full rounded-full transition-all duration-1000 ${isOverBudget ? 'bg-red-500' : 'bg-gradient-to-r from-[#4338ca] to-[#3b82f6]'}`} 
+              style={{ width: `${budgetPercentage}%` }} 
+            />
           </div>
           <div className="absolute -right-20 -top-20 w-64 h-64 bg-indigo-50 rounded-full blur-3xl opacity-50 group-hover:bg-indigo-100 transition-colors duration-500" />
         </div>
@@ -183,7 +274,7 @@ export default function Expenses() {
               const catInfo = CATEGORIES.find(c => c.name === expense.category) || CATEGORIES[0];
               const Icon = catInfo.icon;
               return (
-                <div key={expense.id} className="px-8 py-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors">
+                <div key={expense.id} className="px-8 py-5 flex items-center justify-between hover:bg-gray-50/50 transition-colors group">
                   <div className="flex items-center gap-5">
                     <div className={`w-12 h-12 rounded-2xl ${catInfo.light} flex items-center justify-center ${catInfo.text}`}>
                       <Icon className="w-5 h-5" />
@@ -197,8 +288,16 @@ export default function Expenses() {
                       </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-[#1a1a2e]">{formatCurrency(expense.amount)}</p>
+                  <div className="flex items-center gap-4">
+                    <button 
+                      onClick={() => setEditingExpense(expense)}
+                      className="text-sm font-bold text-[#4338ca] transition-opacity px-3 py-1.5 rounded-lg hover:bg-indigo-50"
+                    >
+                      Edit
+                    </button>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-[#1a1a2e]">{formatCurrency(expense.amount)}</p>
+                    </div>
                   </div>
                 </div>
               );
@@ -206,6 +305,143 @@ export default function Expenses() {
           </div>
         )}
       </div>
+
+      {/* Edit Expense Modal */}
+      {editingExpense && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-[32px] w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-2xl font-bold text-[#1a1a2e]">Edit Expense</h3>
+              <button 
+                onClick={() => setEditingExpense(null)}
+                className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:border-gray-300 transition-colors shadow-sm"
+              >
+                <span className="sr-only">Close</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M13 1L1 13M1 1L13 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditExpense} className="p-8 space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Amount</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₹</span>
+                  <input 
+                    name="amount"
+                    type="number" 
+                    step="0.01"
+                    min="0.01"
+                    defaultValue={editingExpense.amount}
+                    required
+                    placeholder="0.00"
+                    className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-semibold text-[#1a1a2e] focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Category</label>
+                <select 
+                  name="category"
+                  defaultValue={editingExpense.category}
+                  required
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-semibold text-[#1a1a2e] focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] transition-all appearance-none"
+                >
+                  <option value="">Select a category</option>
+                  {CATEGORIES.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Description</label>
+                <input 
+                  name="description"
+                  type="text" 
+                  defaultValue={editingExpense.description}
+                  required
+                  placeholder="What was this for?"
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-semibold text-[#1a1a2e] focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Date</label>
+                <input 
+                  name="date"
+                  type="date" 
+                  defaultValue={editingExpense.date}
+                  required
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-semibold text-[#1a1a2e] focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] transition-all"
+                />
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  type="submit" 
+                  disabled={isEditSubmitting}
+                  className="w-full bg-[#4338ca] hover:bg-[#3730a3] disabled:bg-indigo-300 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition-all shadow-lg shadow-indigo-200 flex justify-center items-center gap-2"
+                >
+                  {isEditSubmitting && <Loader2 className="w-5 h-5 animate-spin" />}
+                  {isEditSubmitting ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Set Budget Modal */}
+      {isBudgetModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-[32px] w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <h3 className="text-2xl font-bold text-[#1a1a2e]">Set Monthly Budget</h3>
+              <button 
+                onClick={() => setIsBudgetModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:border-gray-300 transition-colors shadow-sm"
+              >
+                <span className="sr-only">Close</span>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M13 1L1 13M1 1L13 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            
+            <form onSubmit={handleSetBudget} className="p-8 space-y-6">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">Budget Amount</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">₹</span>
+                  <input 
+                    name="budget"
+                    type="number" 
+                    step="1"
+                    min="1"
+                    defaultValue={budget || ''}
+                    required
+                    placeholder="e.g. 5000"
+                    className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-semibold text-[#1a1a2e] focus:outline-none focus:ring-2 focus:ring-[#4338ca]/30 focus:border-[#4338ca] transition-all"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">Set your total spending limit for the month.</p>
+              </div>
+
+              <div className="pt-2">
+                <button 
+                  type="submit" 
+                  disabled={isBudgetSubmitting}
+                  className="w-full bg-[#4338ca] hover:bg-[#3730a3] disabled:bg-indigo-300 disabled:cursor-not-allowed text-white py-4 rounded-xl font-bold transition-all shadow-lg shadow-indigo-200 flex justify-center items-center gap-2"
+                >
+                  {isBudgetSubmitting && <Loader2 className="w-5 h-5 animate-spin" />}
+                  {isBudgetSubmitting ? "Saving..." : "Save Budget"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
